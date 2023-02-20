@@ -196,8 +196,8 @@ int loop(char **argv, int argc) {
 }
 
 int redirect(char **argv, int argc) {
-    printf("To be redirected: ");
-    print_argv(argv, 0, argc);
+    // printf("To be redirected: ");
+    // print_argv(argv, 0, argc);
     int red_pos = -1;
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i],">") == 0) {
@@ -210,10 +210,10 @@ int redirect(char **argv, int argc) {
             }
         }
     }
-    printf("redirection position: %d\n", red_pos);
+    // printf("redirection position: %d\n", red_pos);
     // no redirection
     if (red_pos == -1) {
-        return execute_main(argv, argc);
+        return pipeline(argv, argc);
     }
     // redirection begins
     // add null-terminator
@@ -228,7 +228,7 @@ int redirect(char **argv, int argc) {
         return -1;
     }
     dup2(fd, STDOUT_FILENO);
-    int ret = execute_main(argv, argc-2);
+    int ret = pipeline(argv, argc-2);
     // restore output stream
     dup2(stdout_cpy, STDOUT_FILENO);
     close(stdout_cpy);
@@ -236,6 +236,78 @@ int redirect(char **argv, int argc) {
     // restore >
     argv[red_pos] = strdup(">");
     return ret; 
+}
+
+int pipeline(char **argv, int argc) {
+    int pipe_pos = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i],"|") == 0) {
+            if (i == 0 || i == argc-1) { 
+                // invalid syntax of pipe
+                return -1;
+            } else {
+                pipe_pos = i;
+                break;
+            }
+        }
+    }
+    // printf("pipe position: %d\n", pipe_pos);
+    // no pipe
+    if (pipe_pos == -1) {
+        return execute_main(argv, argc);
+    }
+    // pipe
+    free(argv[pipe_pos]);
+    argv[pipe_pos] = NULL; // null-terminator
+    // file descriptions for pipe
+    int pipefd[2];// [0]: read; [1]: write
+    if (pipe(pipefd) == -1) {
+        return -1;
+    }
+    // original stdout and stdin
+    int stdout_cpy = dup(STDOUT_FILENO);
+    int stdin_cpy = dup(STDIN_FILENO);
+    //pipe fork
+    pid_t pid = fork();
+    if (pid == -1) {
+        return -1;
+    } else if (pid == 0) {
+        // child, execute the first command
+        // change the write end
+        dup2(pipefd[1], STDOUT_FILENO);
+        int ret = execute_main(argv, pipe_pos);
+        printf("child: %d\n", ret);
+        dup2(stdout_cpy, STDOUT_FILENO);
+        dup2(stdin_cpy, STDIN_FILENO);
+        close(stdout_cpy);
+        close(stdin_cpy);
+        close(pipefd[0]);
+        close(pipefd[1]);
+        exit(ret);  
+    } else {
+        // parent, wait for the first and execute the second
+        int status;
+        wait(&status);
+        int ret;
+        if (WEXITSTATUS(status) != 0) {
+            ret = -1;
+        } else {
+            // change the read end
+            close(pipefd[1]);
+            dup2(pipefd[0], STDIN_FILENO);
+            close(pipefd[0]);
+            ret = execute_main(argv+pipe_pos+1, argc-pipe_pos-1);
+        }
+        printf("parent: %d\n", ret);
+        dup2(stdout_cpy, STDOUT_FILENO);
+        dup2(stdin_cpy, STDIN_FILENO);
+        close(stdout_cpy);
+        close(stdin_cpy);
+        close(pipefd[0]);
+        close(pipefd[1]);
+        argv[pipe_pos] = strdup("|");
+        return ret;
+    }
 }
 
 /// description: Takes a line and splits it into args similar to how argc
