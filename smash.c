@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 void raise_error(); // To-Do
 int lexer();
@@ -20,7 +22,7 @@ int main()
 {
 
     ssize_t getline_ret;
-    char *line = malloc(sizeof(char) * 1024);
+    char *line;
     size_t n;
 
     int lexer_ret;
@@ -38,6 +40,9 @@ int main()
             raise_error();
             continue;
         }
+        if (strcmp(line,"\n") == 0) {
+            continue;
+        }
 
         lexer_ret = lexer(line, &argv, &argc);
         if (lexer_ret == -1)
@@ -45,18 +50,20 @@ int main()
             raise_error();
             continue;
         }
-
         printf("%d-argument input: ", argc);
         print_argv(argv, 0, argc);
 
         int start = 0;
         int end = 0;
         while (start < argc)
-        {
+        {   
             get_next_cmd(&start, &end, argv, argc);
             // set the end of this command to NULL as an indicator 
             // for execute() that this command is over
             // argv[end]==NULL if it is already the end of the line
+            if (start == end) {
+                break;
+            }
             if (end < argc && argv[end] != NULL)
             {
                 free(argv[end]);
@@ -83,6 +90,7 @@ int main()
         printf("All commands executed.\n");
     }
     free_argv(&argv, argc);
+    free(line);
 }
 
 void print_argv(char** argv, int start, int end) {
@@ -108,7 +116,7 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
     {
         (*end)++; // the end of line or next ";"
     }
-    printf("Command found. start: %d, end: %d\n", *start, *end);
+    printf("- - - - - Command found. start: %d, end: %d - - - - -\n", *start, *end);
     print_argv(argv, *start, *end);
 }
 
@@ -173,20 +181,61 @@ int loop(char **argv, int argc) {
         if (cnt <= 0) {
             return -1;
         }
+    } else {
+        return redirect(argv, argc);
     }
     printf("loop %d times.\n", cnt);
     for (int i = 0; i < cnt; i++) {
-        printf("%d-th loop.\n", i);
+        printf("%d-th loop.\n", i+1);
         ret = redirect(argv + 2, argc - 2);
         if (ret == -1) {
-            printf("End.\n");
+            printf("Loop aborted.\n");
             return -1;
         }
     }
 }
 
 int redirect(char **argv, int argc) {
-    return execute_main(argv, argc);
+    printf("To be redirected: ");
+    print_argv(argv, 0, argc);
+    int red_pos = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i],">") == 0) {
+            if (i != argc-2) { 
+                // invalid syntax of redirection
+                return -1;
+            } else {
+                red_pos = i;
+                break;
+            }
+        }
+    }
+    printf("redirection position: %d\n", red_pos);
+    // no redirection
+    if (red_pos == -1) {
+        return execute_main(argv, argc);
+    }
+    // redirection begins
+    // add null-terminator
+    // printf("Redirected to %s\n", argv[red_pos+1]);
+    free(argv[red_pos]);
+    argv[red_pos] = NULL;
+    // change stdout stream 
+    // while maintaining stderr in console
+    int stdout_cpy = dup(STDOUT_FILENO);
+    int fd = open(argv[red_pos+1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+        return -1;
+    }
+    dup2(fd, STDOUT_FILENO);
+    int ret = execute_main(argv, argc-2);
+    // restore output stream
+    dup2(stdout_cpy, STDOUT_FILENO);
+    close(stdout_cpy);
+    close(fd);
+    // restore >
+    argv[red_pos] = strdup(">");
+    return ret; 
 }
 
 /// description: Takes a line and splits it into args similar to how argc
