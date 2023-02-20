@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void raise_error(); // To-Do
+void raise_error();
 int lexer();
 void print_argv();
 void get_next_cmd();
@@ -120,10 +120,8 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
     // print_argv(argv, *start, *end);
 }
 
-int execute_main(char **argv, int argc) // could do without argc?
+int execute_main(char **argv, int argc)
 {   
-    // add loop
-    // add redirect
     if (strcmp(argv[0], "cd") == 0 ) {
         if (argc != 2) {
             return -1;
@@ -233,7 +231,7 @@ int redirect(char **argv, int argc) {
     dup2(stdout_cpy, STDOUT_FILENO);
     close(stdout_cpy);
     close(fd);
-    // restore >
+    // restore ">"
     argv[red_pos] = strdup(">");
     return ret; 
 }
