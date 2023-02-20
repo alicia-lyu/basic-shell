@@ -10,7 +10,11 @@ int lexer();
 void print_argv();
 void get_next_cmd();
 int execute();
+int execute_main();
 void free_argv();
+int loop();
+int redirect();
+int pipeline();
 
 int main()
 {
@@ -20,7 +24,7 @@ int main()
     size_t n;
 
     int lexer_ret;
-    char **argv;
+    char **argv = NULL;
     int argc;
 
     while (1)
@@ -63,7 +67,7 @@ int main()
             {
                 fflush(stdout);
                 free(line);
-                free_argv(argv, argc);
+                free_argv(&argv, argc);
                 exit(0);
             }
             // command to execute
@@ -76,8 +80,9 @@ int main()
             start = end + 1;
             end = start;
         }
-        free_argv(argv, argc);
+        printf("All commands executed.\n");
     }
+    free_argv(&argv, argc);
 }
 
 void print_argv(char** argv, int start, int end) {
@@ -107,8 +112,10 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
     print_argv(argv, *start, *end);
 }
 
-int execute(char **argv, int argc) // could do without argc?
-{
+int execute_main(char **argv, int argc) // could do without argc?
+{   
+    // add loop
+    // add redirect
     if (strcmp(argv[0], "cd") == 0 ) {
         if (argc != 2) {
             return -1;
@@ -129,11 +136,9 @@ int execute(char **argv, int argc) // could do without argc?
     } else {
         pid_t pid = fork();
         if (pid == -1) {
-            printf("Error at fork().\n");
             return -1;
         } else if (pid == 0) {
             // child
-            print_argv(argv, 0, argc);
             execv(argv[0], argv);
             // execv will stop at the first NULL
             // on success, ret will not be returned
@@ -153,7 +158,36 @@ int execute(char **argv, int argc) // could do without argc?
     return 0;
 }
 
+int execute(char **argv, int argc) {
+    loop(argv, argc);
+}
 
+int loop(char **argv, int argc) {
+    int cnt = 1;
+    int ret = 0;
+    if (strcmp(argv[0], "loop") == 0) {
+        if (argc < 2) {
+            return -1;
+        }
+        cnt = atoi(argv[1]);
+        if (cnt <= 0) {
+            return -1;
+        }
+    }
+    printf("loop %d times.\n", cnt);
+    for (int i = 0; i < cnt; i++) {
+        printf("%d-th loop.\n", i);
+        ret = redirect(argv + 2, argc - 2);
+        if (ret == -1) {
+            printf("End.\n");
+            return -1;
+        }
+    }
+}
+
+int redirect(char **argv, int argc) {
+    return execute_main(argv, argc);
+}
 
 /// description: Takes a line and splits it into args similar to how argc
 ///              and argv work in main
@@ -198,14 +232,14 @@ int lexer(char *line, char ***args, int *num_args)
     return 0;
 }
 
-void free_argv(char** argv, int argc) {
+void free_argv(char*** argv, int argc) {
     for (int i = 0; i < argc; i++)
     {
-        if (argv[i] != NULL) {
-            free(argv[i]);
+        if ((*argv)[i] != NULL) {
+            free((*argv)[i]);
         }
     }
-    free(argv);
+    free(*argv);
 }
 
 void raise_error()
