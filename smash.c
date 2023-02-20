@@ -50,8 +50,8 @@ int main()
             raise_error();
             continue;
         }
-        printf("%d-argument input: ", argc);
-        print_argv(argv, 0, argc);
+        // printf("%d-argument input: ", argc);
+        // print_argv(argv, 0, argc);
 
         int start = 0;
         int end = 0;
@@ -78,7 +78,7 @@ int main()
                 exit(0);
             }
             // command to execute
-            printf("- - - - - - Execute results - - - - - -\n");
+            // printf("- - - - - - Execute results - - - - - -\n");
             // fflush(stdout);
             int exec_ret = execute(argv + start, end - start);
             if (exec_ret == -1) {
@@ -87,7 +87,7 @@ int main()
             start = end + 1;
             end = start;
         }
-        printf("All commands executed.\n");
+        // printf("All commands executed.\n");
     }
     free_argv(&argv, argc);
     free(line);
@@ -116,8 +116,8 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
     {
         (*end)++; // the end of line or next ";"
     }
-    printf("- - - - - Command found. start: %d, end: %d - - - - -\n", *start, *end);
-    print_argv(argv, *start, *end);
+    // printf("- - - - - Command found. start: %d, end: %d - - - - -\n", *start, *end);
+    // print_argv(argv, *start, *end);
 }
 
 int execute_main(char **argv, int argc) // could do without argc?
@@ -156,7 +156,7 @@ int execute_main(char **argv, int argc) // could do without argc?
             int status;
             wait(&status);
             if (WEXITSTATUS(status) == 255) {
-                printf("Command not found.\n");
+                // printf("Command not found.\n");
                 return -1;
                 // 255: command not found
                 // the only status we need to output the standard error message
@@ -184,12 +184,12 @@ int loop(char **argv, int argc) {
     } else {
         return redirect(argv, argc);
     }
-    printf("loop %d times.\n", cnt);
+    // printf("loop %d times.\n", cnt);
     for (int i = 0; i < cnt; i++) {
-        printf("%d-th loop.\n", i+1);
+        // printf("%d-th loop.\n", i+1);
         ret = redirect(argv + 2, argc - 2);
         if (ret == -1) {
-            printf("Loop aborted.\n");
+            // printf("Loop aborted.\n");
             return -1;
         }
     }
@@ -276,7 +276,7 @@ int pipeline(char **argv, int argc) {
         // change the write end
         dup2(pipefd[1], STDOUT_FILENO);
         int ret = execute_main(argv, pipe_pos);
-        printf("child: %d\n", ret);
+        // printf("child: %d\n", ret);
         dup2(stdout_cpy, STDOUT_FILENO);
         dup2(stdin_cpy, STDIN_FILENO);
         close(stdout_cpy);
@@ -298,7 +298,7 @@ int pipeline(char **argv, int argc) {
             close(pipefd[0]);
             ret = execute_main(argv+pipe_pos+1, argc-pipe_pos-1);
         }
-        printf("parent: %d\n", ret);
+        // printf("parent: %d\n", ret);
         dup2(stdout_cpy, STDOUT_FILENO);
         dup2(stdin_cpy, STDIN_FILENO);
         close(stdout_cpy);
