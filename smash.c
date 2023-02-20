@@ -64,7 +64,7 @@ int main()
                 fflush(stdout);
                 free(line);
                 free_argv(argv, argc);
-                return 0;
+                exit(0);
             }
             // command to execute
             printf("- - - - - - Execute results - - - - - -\n");
@@ -102,7 +102,6 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
         && strcmp(argv[*end], ";") != 0 )
     {
         (*end)++; // the end of line or next ";"
-        printf("%d\t", *end);
     }
     printf("Command found. start: %d, end: %d\n", *start, *end);
     print_argv(argv, *start, *end);
@@ -111,9 +110,22 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
 int execute(char **argv, int argc) // could do without argc?
 {
     if (strcmp(argv[0], "cd") == 0 ) {
-        // To-do
+        if (argc != 2) {
+            return -1;
+        }
+        if (chdir(argv[1]) != 0) {
+            return -1;
+        }
     } else if (strcmp(argv[0], "pwd") == 0) {
-        // To-do
+        if (argc != 1) {
+            return -1;
+        }
+        char* cwd = getcwd(NULL, 0);
+        if (cwd == NULL) {
+            return -1;
+        }
+        printf("%s\n", cwd);
+        free(cwd);
     } else {
         pid_t pid = fork();
         if (pid == -1) {
