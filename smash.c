@@ -42,25 +42,24 @@ int main()
             continue;
         }
 
-        printf("%d-argument input\n", argc);
+        printf("%d-argument input: ", argc);
         print_argv(argv, 0, argc);
 
         int start = 0;
         int end = 0;
-        int ret = 0;
         while (start < argc)
         {
             get_next_cmd(&start, &end, argv, argc);
             // set the end of this command to NULL as an indicator 
             // for execute() that this command is over
             // argv[end]==NULL if it is already the end of the line
-            if (argv[end] != NULL) 
+            if (end < argc && argv[end] != NULL)
             {
-                argv[end] == NULL;
                 free(argv[end]);
+                argv[end] = NULL;
             }
             // exit command
-            if (strcmp(argv[start], "exit") == 0)
+            if (start < argc && strcmp(argv[start], "exit") == 0)
             {
                 fflush(stdout);
                 free(line);
@@ -68,7 +67,8 @@ int main()
                 return 0;
             }
             // command to execute
-            printf("- - - - - - Execute results - - - - - -");
+            printf("- - - - - - Execute results - - - - - -\n");
+            // fflush(stdout);
             int exec_ret = execute(argv + start, end - start);
             if (exec_ret == -1) {
                 raise_error();
@@ -83,28 +83,32 @@ int main()
 void print_argv(char** argv, int start, int end) {
     printf("[");
     for (int i = start; i < end; i++) {
-        printf("%d: %s, ", i, argv[i]);
+        printf("%d:\"%s\", ", i, argv[i]);
     }
     printf("]\n");
 }
 
 void get_next_cmd(int *start, int *end, char **argv, int argc)
-{
+{   
     // skip ";"s
     while (*start < argc && strcmp(argv[*start], ";") == 0)
     {
-        *start += 1;
+        (*start)++;
     }
+    *end = *start;
     // scan till the end of the command
-    while (*end < argc && strcmp(argv[*end], ";") != 0)
+    while (*end < argc 
+        && argv[*end] != NULL
+        && strcmp(argv[*end], ";") != 0 )
     {
-        *end += 1; // the end of line or next ";"
+        (*end)++; // the end of line or next ";"
+        printf("%d\t", *end);
     }
-    printf("start: %d, end: %d\n", *start, *end);
+    printf("Command found. start: %d, end: %d\n", *start, *end);
     print_argv(argv, *start, *end);
 }
 
-int execute(char **argv, int argc)
+int execute(char **argv, int argc) // could do without argc?
 {
     if (strcmp(argv[0], "cd") == 0 ) {
         // To-do
@@ -113,25 +117,23 @@ int execute(char **argv, int argc)
     } else {
         pid_t pid = fork();
         if (pid == -1) {
+            printf("Error at fork().\n");
             return -1;
         } else if (pid == 0) {
             // child
-            int ret = 0;
-            ret = execv(argv[0], argv); 
+            print_argv(argv, 0, argc);
+            execv(argv[0], argv);
             // execv will stop at the first NULL
             // on success, ret will not be returned
-            if (ret == -1) {
-                exit(-1);
-            } else if (ret == 0) {
-                printf("Child process success.");
-                exit(0);
-            }
+            exit(-1);
         } else {
             // parent
             int status;
             wait(&status);
             if (WEXITSTATUS(status) == 255) {
-                return -1; 
+                printf("Command not found.\n");
+                return -1;
+                // 255: command not found
                 // the only status we need to output the standard error message
             }
         }
@@ -166,7 +168,8 @@ int lexer(char *line, char ***args, int *num_args)
     }
     free(l);
     // split line into args
-    *args = malloc(sizeof(char **) * *num_args);
+    *args = malloc(sizeof(char **) * ((*num_args)++));
+    // store NULL at the end
     *num_args = 0;
     token = strtok(line, " \t\n");
     while (token != NULL)
@@ -179,6 +182,7 @@ int lexer(char *line, char ***args, int *num_args)
         (*args)[(*num_args)++] = token_copy;
         token = strtok(NULL, " \t\n");
     }
+    (*args)[(*num_args)++] = NULL;
     return 0;
 }
 
