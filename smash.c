@@ -2,6 +2,8 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <wait.h>
 
 void raise_error(); // To-Do
 int lexer();
@@ -54,7 +56,8 @@ int main()
             // argv[end]==NULL if it is already the end of the line
             if (argv[end] != NULL) 
             {
-                argv[end] == NULL; 
+                argv[end] == NULL;
+                free(argv[end]);
             }
             // exit command
             if (strcmp(argv[start], "exit") == 0)
@@ -65,6 +68,7 @@ int main()
                 return 0;
             }
             // command to execute
+            printf("- - - - - - Execute results - - - - - -");
             int exec_ret = execute(argv + start, end - start);
             if (exec_ret == -1) {
                 raise_error();
@@ -102,8 +106,40 @@ void get_next_cmd(int *start, int *end, char **argv, int argc)
 
 int execute(char **argv, int argc)
 {
+    if (strcmp(argv[0], "cd") == 0 ) {
+        // To-do
+    } else if (strcmp(argv[0], "pwd") == 0) {
+        // To-do
+    } else {
+        pid_t pid = fork();
+        if (pid == -1) {
+            return -1;
+        } else if (pid == 0) {
+            // child
+            int ret = 0;
+            ret = execv(argv[0], argv); 
+            // execv will stop at the first NULL
+            // on success, ret will not be returned
+            if (ret == -1) {
+                exit(-1);
+            } else if (ret == 0) {
+                printf("Child process success.");
+                exit(0);
+            }
+        } else {
+            // parent
+            int status;
+            wait(&status);
+            if (WEXITSTATUS(status) == 255) {
+                return -1; 
+                // the only status we need to output the standard error message
+            }
+        }
+    }
     return 0;
 }
+
+
 
 /// description: Takes a line and splits it into args similar to how argc
 ///              and argv work in main
@@ -149,12 +185,15 @@ int lexer(char *line, char ***args, int *num_args)
 void free_argv(char** argv, int argc) {
     for (int i = 0; i < argc; i++)
     {
-        free(argv[i]);
+        if (argv[i] != NULL) {
+            free(argv[i]);
+        }
     }
     free(argv);
 }
 
 void raise_error()
 {
-    printf("An error has occurred\n");
+    char error_message[30] = "An error has occurred\n";
+    write(STDERR_FILENO, error_message, strlen(error_message));
 }
