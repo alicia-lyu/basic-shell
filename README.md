@@ -19,7 +19,14 @@
 - Error Handling: Uniform error message for all errors.
 - Parsing: Separate process for parsing and execution to handle syntax errors.
 
+## Usage
+
+- To start the shell: ./smash
+- Example commands:
+    - `./smash`
+    - `smash> /bin/ls -la /tmp > output`
+    - `smash> loop 3 cmd args`
 
 Developed and tested on Linux.
 
-Acknowledgments: Thanks to CS537 Spring 2023 course staff.
+Acknowledgments: Thanks to CS 537 Spring 2023 course staff at University of Wisconsin–Madison for providing project description and test cases.
